@@ -148,34 +148,6 @@
             color: var(--text-muted);
         }
 
-        .level-filter {
-            display: flex;
-            background: var(--bg-secondary);
-            border-radius: 6px;
-            padding: 2px;
-            gap: 2px;
-        }
-
-        .level-filter-btn {
-            font-family: inherit;
-            font-size: 0.75rem;
-            font-weight: 500;
-            padding: 5px 10px;
-            background: transparent;
-            border: none;
-            border-radius: 4px;
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-
-        .level-filter-btn:hover { color: var(--text-primary); }
-        .level-filter-btn.active {
-            background: var(--bg-white);
-            color: var(--text-primary);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-
         .table-container {
             background: var(--bg-white);
             border-radius: 12px;
@@ -525,11 +497,6 @@
         <div class="stats-bar">
             <span class="period" id="current-period">Experiência de Ontem</span>
             <div class="actions">
-                <div class="level-filter">
-                    <button class="level-filter-btn active" data-filter="all">Todos</button>
-                    <button class="level-filter-btn" data-filter="500+">500+</button>
-                    <button class="level-filter-btn" data-filter="500-">Até 500</button>
-                </div>
                 <span class="meta" id="showing-count"></span>
                 <button class="screenshot-btn" id="screenshot-btn" title="Gerar imagem do Top 20">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -569,7 +536,6 @@
     <script>
         let rankingData = null;
         let currentPeriod = 'consolidated';
-        let currentLevelFilter = 'all';
         let displayCount = 20;
         const INCREMENT = 10;
 
@@ -586,19 +552,6 @@
             '7days': '7 Dias',
             '30days': '30 Dias'
         };
-
-        const filterLabels = {
-            'all': '',
-            '500+': ' (500+)',
-            '500-': ' (Até 500)'
-        };
-
-        function filterByLevel(data) {
-            if (currentLevelFilter === 'all') return data;
-            if (currentLevelFilter === '500+') return data.filter(p => (p.level || 0) >= 500);
-            if (currentLevelFilter === '500-') return data.filter(p => (p.level || 0) < 500);
-            return data;
-        }
 
         function buildConsolidatedData() {
             if (!rankingData) return [];
@@ -656,10 +609,7 @@
             // Converte para array
             let allPlayers = Object.values(playerMap);
             
-            // Aplica filtro de level
-            allPlayers = filterByLevel(allPlayers);
-            
-            // Agora calcula os ranks DENTRO do filtro aplicado
+            // Calcula os ranks de cada período
             // Rank de 30 dias
             const sorted30 = [...allPlayers].sort((a, b) => b.exp_30days - a.exp_30days);
             sorted30.forEach((p, idx) => {
@@ -744,10 +694,9 @@
 
             let rawData;
             if (currentPeriod === 'consolidated') {
-                rawData = buildConsolidatedData(); // Já aplica o filtro internamente
+                rawData = buildConsolidatedData();
             } else {
                 rawData = rankingData.rankings[currentPeriod] || [];
-                rawData = filterByLevel(rawData); // Aplica filtro só para abas simples
             }
             
             const data = rawData;
@@ -840,19 +789,7 @@
                 tab.classList.toggle('active', tab.dataset.period === period);
             });
             
-            document.getElementById('current-period').textContent = periodLabels[period] + filterLabels[currentLevelFilter];
-            renderRanking();
-        }
-
-        function switchLevelFilter(filter) {
-            currentLevelFilter = filter;
-            displayCount = 20;
-            
-            document.querySelectorAll('.level-filter-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.filter === filter);
-            });
-            
-            document.getElementById('current-period').textContent = periodLabels[currentPeriod] + filterLabels[filter];
+            document.getElementById('current-period').textContent = periodLabels[period];
             renderRanking();
         }
 
@@ -869,10 +806,9 @@
             try {
                 let data;
                 if (currentPeriod === 'consolidated') {
-                    data = buildConsolidatedData(); // Já aplica filtro
+                    data = buildConsolidatedData();
                 } else {
-                    let rawData = rankingData.rankings[currentPeriod] || [];
-                    data = filterByLevel(rawData);
+                    data = rankingData.rankings[currentPeriod] || [];
                 }
                 const top20 = data.slice(0, 20);
                 
@@ -977,7 +913,7 @@
                             </div>
                         </div>
                         <div class="screenshot-period">
-                            <h3>${periodLabelsShort[currentPeriod]}${filterLabels[currentLevelFilter]}</h3>
+                            <h3>${periodLabelsShort[currentPeriod]}</h3>
                             <p>${rankingData.last_update_display || ''}</p>
                         </div>
                     </div>
@@ -1011,8 +947,7 @@
                 // Download image
                 const link = document.createElement('a');
                 const date = new Date().toISOString().split('T')[0];
-                const filterSuffix = currentLevelFilter !== 'all' ? `-${currentLevelFilter}` : '';
-                link.download = `blackout-top20-${currentPeriod}${filterSuffix}-${date}.png`;
+                link.download = `blackout-top20-${currentPeriod}-${date}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
 
@@ -1052,10 +987,6 @@
 
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.addEventListener('click', () => switchPeriod(tab.dataset.period));
-        });
-
-        document.querySelectorAll('.level-filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => switchLevelFilter(btn.dataset.filter));
         });
 
         document.getElementById('load-more-btn').addEventListener('click', () => {
